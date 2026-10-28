@@ -618,7 +618,7 @@ function renderLeaderboard(entries, target = $("leaderboard")) {
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
 
-  ["#", "Játékos", "Helyes", "Hibák", "Eredmény (%)", "Időpont"]
+  ["#", "Játékos", "Helyes", "Hibák", "Eredmény", "Időpont"]
     .forEach(label => addText(headerRow, "th", label));
 
   thead.appendChild(headerRow);
