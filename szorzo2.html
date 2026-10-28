@@ -224,11 +224,11 @@
     : null;
 
   // 2. Játékbeállítások
-  const MIN = 0;
+  const MIN = 2;
   const MAX = 10;
   const TIME_LIMIT = 5;
   const TOTAL_QUESTIONS = 30;
-  const LEADERBOARD_LIMIT = 10;
+  const LEADERBOARD_LIMIT = 20;
 
   const $ = id => document.getElementById(id);
 
@@ -538,6 +538,7 @@
 
       $("saveStatus").textContent = "✓ Az eredmény sikeresen elmentve.";
       await loadLeaderboard(finishedGameId);
+      await loadStartLeaderboard();
     } catch (error) {
       if (finishedGameId !== gameId) return;
 
@@ -692,11 +693,11 @@ function renderLeaderboard(entries, target = $("leaderboard")) {
     $("username").value = username;
     setFeedback("");
     showScreen("nameScreen");
+    loadStartLeaderboard();
     $("username").focus();
   });
   
-//loadStartLeaderboard();
-loadLeaderboard();
+loadStartLeaderboard();
   
 </script>
 </body>
