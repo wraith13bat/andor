@@ -1,0 +1,428 @@
+
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Szorzótábla gyakorló</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 25px 0;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px #0002;
+            text-align: center;
+            width: 440px;
+            max-width: calc(100% - 60px);
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #234;
+            font-size: 26px;
+        }
+
+        #progress {
+            color: #555;
+        }
+
+        #question {
+            font-size: 42px;
+            font-weight: bold;
+            margin: 25px 0;
+        }
+
+        #timer {
+            font-size: 22px;
+            color: #d97706;
+            margin-bottom: 15px;
+        }
+
+        input {
+            font-size: 24px;
+            width: 150px;
+            padding: 10px;
+            text-align: center;
+            border: 2px solid #aaa;
+            border-radius: 8px;
+        }
+
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin-top: 15px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #999;
+            cursor: default;
+        }
+
+        #feedback {
+            min-height: 28px;
+            font-size: 18px;
+            margin-top: 15px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #result {
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        #wrongList {
+            text-align: left;
+            padding-left: 25px;
+        }
+
+        #wrongList li {
+            margin: 8px 0;
+        }
+
+        .wrong-answer {
+            color: #b91c1c;
+        }
+
+        .timeout {
+            color: #b45309;
+        }
+
+        .success {
+            color: #15803d;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <h1>Szorzótábla</h1>
+
+    <p id="progress">121 kérdés</p>
+    <div id="question">Készen állsz?</div>
+    <div id="timer">5 másodperc</div>
+
+    <form id="answerForm" class="hidden">
+        <input
+            id="answer"
+            type="number"
+            step="1"
+            placeholder="Válasz"
+            autocomplete="off"
+            required
+        >
+        <br>
+        <button id="submitButton" type="submit">Válasz</button>
+    </form>
+
+    <div id="feedback" aria-live="polite"></div>
+    <div id="result"></div>
+
+    <button id="startButton" type="button">
+        Játék indítása
+    </button>
+</div>
+
+<script>
+    const MIN = 0;
+    const MAX = 10;
+    const TIME_LIMIT = 5;
+    const TOTAL_QUESTIONS = (MAX - MIN + 1) ** 2;
+
+    const questionElement = document.getElementById("question");
+    const timerElement = document.getElementById("timer");
+    const answerInput = document.getElementById("answer");
+    const answerForm = document.getElementById("answerForm");
+    const submitButton = document.getElementById("submitButton");
+    const startButton = document.getElementById("startButton");
+    const feedbackElement = document.getElementById("feedback");
+    const progressElement = document.getElementById("progress");
+    const resultElement = document.getElementById("result");
+
+    let questions = [];
+    let questionNumber = 0;
+    let correctAnswers = 0;
+    let wrongAnswers = [];
+
+    let expectedAnswer = 0;
+    let currentQuestion = null;
+    let timer = null;
+    let nextQuestionTimeout = null;
+    let questionActive = false;
+    let questionStartedAt = 0;
+
+    // Véletlenszerű sorrend, ismétlődés nélkül.
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    function startGame() {
+        clearInterval(timer);
+        clearTimeout(nextQuestionTimeout);
+
+        questions = [];
+
+        // Minden kombináció: 0×0-tól 10×10-ig.
+        for (let a = MIN; a <= MAX; a++) {
+            for (let b = MIN; b <= MAX; b++) {
+                questions.push({ a, b });
+            }
+        }
+
+        shuffle(questions);
+
+        questionNumber = 0;
+        correctAnswers = 0;
+        wrongAnswers = [];
+        questionActive = false;
+
+        resultElement.replaceChildren();
+        feedbackElement.textContent = "";
+
+        answerForm.classList.remove("hidden");
+        answerInput.disabled = false;
+        submitButton.disabled = false;
+        startButton.classList.add("hidden");
+
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        clearInterval(timer);
+        clearTimeout(nextQuestionTimeout);
+
+        if (questionNumber >= TOTAL_QUESTIONS) {
+            finishGame();
+            return;
+        }
+
+        currentQuestion = questions[questionNumber];
+        questionNumber++;
+
+        expectedAnswer = currentQuestion.a * currentQuestion.b;
+
+        questionElement.textContent =
+            `${currentQuestion.a} × ${currentQuestion.b} = ?`;
+
+        progressElement.textContent =
+            `${questionNumber} / ${TOTAL_QUESTIONS}. kérdés`;
+
+        feedbackElement.textContent = "";
+        answerInput.value = "";
+        answerInput.disabled = false;
+        submitButton.disabled = false;
+
+        let timeLeft = TIME_LIMIT;
+        timerElement.textContent = `${timeLeft} másodperc`;
+
+        questionActive = true;
+        questionStartedAt = Date.now();
+        answerInput.focus();
+
+        timer = setInterval(() => {
+            const elapsed =
+                (Date.now() - questionStartedAt) / 1000;
+
+            timeLeft = Math.max(
+                0,
+                Math.ceil(TIME_LIMIT - elapsed)
+            );
+
+            timerElement.textContent = `${timeLeft} másodperc`;
+
+            if (elapsed >= TIME_LIMIT) {
+                handleTimeout();
+            }
+        }, 50);
+    }
+
+    function submitAnswer(event) {
+        event.preventDefault();
+
+        if (!questionActive) return;
+
+        // A határidő lejárta után beadott válasz is hibás.
+        const elapsed =
+            (Date.now() - questionStartedAt) / 1000;
+
+        if (elapsed >= TIME_LIMIT) {
+            handleTimeout();
+            return;
+        }
+
+        if (answerInput.value.trim() === "") return;
+
+        const userAnswer = answerInput.valueAsNumber;
+
+        if (!Number.isInteger(userAnswer)) return;
+
+        questionActive = false;
+        clearInterval(timer);
+
+        if (userAnswer === expectedAnswer) {
+            correctAnswers++;
+            feedbackElement.textContent = "Helyes válasz!";
+            feedbackElement.style.color = "green";
+        } else {
+            recordWrongAnswer(userAnswer, "Hibás válasz");
+            feedbackElement.textContent =
+                `Hibás! A helyes válasz: ${expectedAnswer}`;
+            feedbackElement.style.color = "red";
+        }
+
+        answerInput.disabled = true;
+        submitButton.disabled = true;
+
+        nextQuestionTimeout = setTimeout(nextQuestion, 500);
+    }
+
+    function recordWrongAnswer(userAnswer, reason) {
+        wrongAnswers.push({
+            a: currentQuestion.a,
+            b: currentQuestion.b,
+            expected: expectedAnswer,
+            given: userAnswer,
+            reason: reason
+        });
+    }
+
+    function handleTimeout() {
+        if (!questionActive) return;
+
+        questionActive = false;
+        clearInterval(timer);
+
+        recordWrongAnswer(null, "Időtúllépés");
+
+        feedbackElement.textContent =
+            `Lejárt az idő! Helyes válasz: ${expectedAnswer}`;
+        feedbackElement.style.color = "red";
+
+        answerInput.disabled = true;
+        submitButton.disabled = true;
+
+        nextQuestionTimeout = setTimeout(nextQuestion, 800);
+    }
+
+    function finishGame() {
+        clearInterval(timer);
+        clearTimeout(nextQuestionTimeout);
+        questionActive = false;
+
+        questionElement.textContent = "Vége a játéknak!";
+        timerElement.textContent = "";
+        progressElement.textContent = "Végeredmény";
+
+        answerForm.classList.add("hidden");
+
+        const percentage =
+            Math.round(correctAnswers / TOTAL_QUESTIONS * 100);
+
+        let message;
+
+        if (correctAnswers === TOTAL_QUESTIONS) {
+            message = "Kiváló! Minden válasz helyes!";
+        } else if (percentage >= 80) {
+            message = "Nagyon ügyes vagy!";
+        } else if (percentage >= 60) {
+            message = "Jó eredmény, gyakorolj még!";
+        } else {
+            message = "Gyakorold még a szorzótáblát!";
+        }
+
+        resultElement.replaceChildren();
+
+        const heading = document.createElement("h2");
+        heading.textContent =
+            `Eredmény: ${correctAnswers} / ${TOTAL_QUESTIONS}`;
+        resultElement.appendChild(heading);
+
+        const percent = document.createElement("h3");
+        percent.textContent = `Helyes válaszok: ${percentage}%`;
+        resultElement.appendChild(percent);
+
+        const wrongCount = document.createElement("p");
+        wrongCount.textContent =
+            `Hibás válaszok és időtúllépések: ${wrongAnswers.length}`;
+        resultElement.appendChild(wrongCount);
+
+        const messageElement = document.createElement("p");
+        messageElement.textContent = message;
+        resultElement.appendChild(messageElement);
+
+        if (wrongAnswers.length > 0) {
+            const title = document.createElement("h3");
+            title.textContent = "Hibás válaszok részletesen";
+            resultElement.appendChild(title);
+
+            const list = document.createElement("ol");
+            list.id = "wrongList";
+
+            wrongAnswers.forEach(item => {
+                const li = document.createElement("li");
+                li.className =
+                    item.reason === "Időtúllépés"
+                        ? "timeout"
+                        : "wrong-answer";
+
+                const questionText =
+                    `${item.a} × ${item.b} = ${item.expected}`;
+
+                if (item.reason === "Időtúllépés") {
+                    li.textContent =
+                        `${item.a} × ${item.b}: nem érkezett válasz ` +
+                        `(időtúllépés). Helyes válasz: ${item.expected}`;
+                } else {
+                    li.textContent =
+                        `${item.a} × ${item.b}: megadott válasz: ` +
+                        `${item.given}. Helyes válasz: ${item.expected}`;
+                }
+
+                list.appendChild(li);
+            });
+
+            resultElement.appendChild(list);
+        } else {
+            const success = document.createElement("p");
+            success.className = "success";
+            success.textContent = "Nem volt hibás válasz!";
+            resultElement.appendChild(success);
+        }
+
+        startButton.textContent = "Új játék";
+        startButton.classList.remove("hidden");
+    }
+
+    answerForm.addEventListener("submit", submitAnswer);
+    startButton.addEventListener("click", startGame);
+</script>
+</body>
+</html>
