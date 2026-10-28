@@ -143,24 +143,33 @@
 <div class="container">
   <h1>Szorzótábla gyakorló</h1>
 
-  <section id="nameScreen">
-    <p>Üdvözöl a szorzótábla gyakorló!</p>
-    <p>Add meg a neved, és próbálj felkerülni a toplistára.</p>
 
-    <form id="nameForm">
-      <input
-        id="username"
-        type="text"
-        minlength="1"
-        maxlength="20"
-        placeholder="Játékos neve"
-        autocomplete="nickname"
-        required
-      >
-      <br>
-      <button type="submit">Játék indítása</button>
-    </form>
-  </section>
+<section id="nameScreen">
+  <p>Üdvözöl a szorzótábla gyakorló!</p>
+  <p>Add meg a neved, és próbálj felkerülni a toplistára.</p>
+
+  <form id="nameForm">
+    <input
+      id="username"
+      type="text"
+      minlength="1"
+      maxlength="20"
+      placeholder="Játékos neve"
+      autocomplete="nickname"
+      required
+    >
+    <br>
+    <button type="submit">Játék indítása</button>
+  </form>
+
+  <h2>🏆 Toplista</h2>
+  <p class="muted">A legjobb eredmények sorrendjében.</p>
+
+  <div id="startLeaderboard" class="table-wrap">
+    Toplista betöltése...
+  </div>
+</section>
+
 
   <section id="gameScreen" class="hidden">
     <p id="playerLabel"></p>
@@ -540,6 +549,37 @@
     }
   }
 
+
+async function loadStartLeaderboard() {
+  const container = $("startLeaderboard");
+  container.textContent = "Toplista betöltése...";
+
+  if (!db) {
+    container.textContent =
+      "A toplista megjelenítéséhez állítsd be a Supabase-kapcsolatot.";
+    return;
+  }
+
+  try {
+    const { data, error } = await db
+      .from("leaderboard")
+      .select("id, username, correct, errors, grade, created_at")
+      .order("correct", { ascending: false })
+      .order("errors", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(LEADERBOARD_LIMIT);
+
+    if (error) throw error;
+
+    renderLeaderboard(data || [], container);
+  } catch (error) {
+    console.error("Toplista betöltési hiba:", error);
+    container.textContent =
+      "A toplista jelenleg nem tölthető be. Próbáld meg később.";
+  }
+}
+
+  
   async function loadLeaderboard(expectedGameId = gameId) {
     $("leaderboard").textContent = "Toplista betöltése...";
 
@@ -565,53 +605,70 @@
     }
   }
 
-  function renderLeaderboard(entries) {
-    const container = $("leaderboard");
-    container.replaceChildren();
 
-    if (entries.length === 0) {
-      addText(container, "p", "Még nincs mentett eredmény.");
-      return;
+function renderLeaderboard(entries, target = $("leaderboard")) {
+  const container = target;
+  container.replaceChildren();
+
+  if (entries.length === 0) {
+    addText(container, "p", "Még nincs mentett eredmény.");
+    return;
+  }
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+
+  ["#", "Játékos", "Helyes", "Hibák", "Jegy", "Időpont"]
+    .forEach(label => addText(headerRow, "th", label));
+
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  entries.forEach((entry, index) => {
+    const tr = document.createElement("tr");
+
+    if (
+      entry.username === username &&
+      entry.correct >= 0 &&
+      entry.correct === Number(entry.correct)
+    ) {
+      tr.className = "my-result";
     }
 
-    const table = document.createElement("table");
-    const thead = document.createElement("thead");
-    const headerRow = document.createElement("tr");
+    [
+      String(index + 1),
+      entry.username,
+      String(entry.correct),
+      String(entry.errors),
+      String(entry.grade)
+    ].forEach(value => addText(tr, "td", value));
 
-    ["#", "Játékos", "Helyes", "Hibák", "Jegy"].forEach(label => {
-      addText(headerRow, "th", label);
-    });
+    const dateCell = document.createElement("td");
+    const date = new Date(entry.created_at);
 
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
+    dateCell.textContent = Number.isNaN(date.getTime())
+      ? "—"
+      : new Intl.DateTimeFormat("hu-HU", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false
+        }).format(date);
 
-    const tbody = document.createElement("tbody");
+    tr.appendChild(dateCell);
+    tbody.appendChild(tr);
+  });
 
-    entries.forEach((entry, index) => {
-      const tr = document.createElement("tr");
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
 
-      if (
-        entry.username === username &&
-        entry.correct >= 0 &&
-        entry.correct === Number(entry.correct)
-      ) {
-        tr.className = "my-result";
-      }
-
-      [
-        String(index + 1),
-        entry.username,
-        String(entry.correct),
-        String(entry.errors),
-        String(entry.grade)
-      ].forEach(value => addText(tr, "td", value));
-
-      tbody.appendChild(tr);
-    });
-
-    table.appendChild(tbody);
-    container.appendChild(table);
-  }
 
   $("nameForm").addEventListener("submit", event => {
     event.preventDefault();
@@ -637,6 +694,9 @@
     showScreen("nameScreen");
     $("username").focus();
   });
+  
+loadStartLeaderboard();
+
 </script>
 </body>
 </html>
