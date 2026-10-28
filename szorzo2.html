@@ -461,12 +461,6 @@
       `Hibás válaszok és időtúllépések: ${errors}`
     );
 
-    addText(
-      result,
-      "div",
-      `Érdemjegy: ${gradeInfo.grade}`,
-      gradeInfo.className
-    ).id = "grade";
 
     addText(result, "p", gradeInfo.message);
 
@@ -596,7 +590,7 @@ async function loadStartLeaderboard() {
       if (error) throw error;
       if (expectedGameId !== gameId) return;
 
-      renderLeaderboard(data || []);
+      (data || []);
     } catch (error) {
       if (expectedGameId !== gameId) return;
 
@@ -605,6 +599,7 @@ async function loadStartLeaderboard() {
         "A toplista jelenleg nem tölthető be. Próbáld meg később.";
     }
   }
+
 
 
 function renderLeaderboard(entries, target = $("leaderboard")) {
@@ -620,7 +615,7 @@ function renderLeaderboard(entries, target = $("leaderboard")) {
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
 
-  ["#", "Játékos", "Helyes", "Hibák", "Jegy", "Időpont"]
+  ["#", "Játékos", "Helyes", "Hibák", "Eredmény (%)", "Időpont"]
     .forEach(label => addText(headerRow, "th", label));
 
   thead.appendChild(headerRow);
@@ -639,12 +634,14 @@ function renderLeaderboard(entries, target = $("leaderboard")) {
       tr.className = "my-result";
     }
 
+    const percentage = Math.round(entry.correct / 30 * 100);
+
     [
       String(index + 1),
       entry.username,
       String(entry.correct),
       String(entry.errors),
-      String(entry.grade)
+      `${percentage}%`
     ].forEach(value => addText(tr, "td", value));
 
     const dateCell = document.createElement("td");
@@ -669,6 +666,7 @@ function renderLeaderboard(entries, target = $("leaderboard")) {
   table.appendChild(tbody);
   container.appendChild(table);
 }
+
 
 
   $("nameForm").addEventListener("submit", event => {
