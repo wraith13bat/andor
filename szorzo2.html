@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Szorzótábla gyakorló2</title>
+  <title>Szorzótábla gyakorló3</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -575,30 +575,33 @@ async function loadStartLeaderboard() {
 }
 
   
-  async function loadLeaderboard(expectedGameId = gameId) {
-    $("leaderboard").textContent = "Toplista betöltése...";
 
-    try {
-      const { data, error } = await db
-        .from("leaderboard")
-        .select("id, username, correct, errors, grade, created_at")
-        .order("correct", { ascending: false })
-        .order("errors", { ascending: true })
-        .order("created_at", { ascending: false })
-        .limit(LEADERBOARD_LIMIT);
+async function loadLeaderboard(expectedGameId = gameId) {
+  $("leaderboard").textContent = "Toplista betöltése...";
 
-      if (error) throw error;
-      if (expectedGameId !== gameId) return;
+  try {
+    const { data, error } = await db
+      .from("leaderboard")
+      .select("id, username, correct, errors, grade, created_at")
+      .order("correct", { ascending: false })
+      .order("errors", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(LEADERBOARD_LIMIT);
 
-      (data || []);
-    } catch (error) {
-      if (expectedGameId !== gameId) return;
+    if (error) throw error;
+    if (expectedGameId !== gameId) return;
 
-      console.error("Toplista betöltési hiba:", error);
-      $("leaderboard").textContent =
-        "A toplista jelenleg nem tölthető be. Próbáld meg később.";
-    }
+    renderLeaderboard(data || [], $("leaderboard"));
+
+  } catch (error) {
+    if (expectedGameId !== gameId) return;
+
+    console.error("Toplista betöltési hiba:", error);
+    $("leaderboard").textContent =
+      "A toplista jelenleg nem tölthető be. Próbáld meg később.";
   }
+}
+
 
 
 
