@@ -1,357 +1,226 @@
-
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RETRO SQUASH 84</title>
-<style>
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: #080812;
-  color: #00ff99;
-  font-family: monospace;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.game { width: min(94vw, 760px); text-align: center; }
-h1 {
-  color: #ff38dc;
-  text-shadow: 0 0 12px #ff38dc;
-  letter-spacing: 5px;
-}
-.info {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 4px;
-  font-size: 15px;
-}
-canvas {
-  display: block;
-  width: 100%;
-  border: 3px solid #00ff99;
-  box-shadow: 0 0 20px #00ff9944;
-  background: #090d19;
-  image-rendering: pixelated;
-  touch-action: none;
-}
-button {
-  margin: 14px 5px;
-  padding: 12px 22px;
-  background: #ff38dc;
-  color: #080812;
-  border: 0;
-  font: bold 15px monospace;
-  cursor: pointer;
-}
-button:hover { background: #fff; }
-p { color: #aaa; font-size: 12px; line-height: 1.8; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retró Fallabda (Breakout)</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #0ff;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px #0ff;
+        }
+        #game-container {
+            display: inline-block;
+            border: 4px solid #0ff;
+            box-shadow: 0 0 20px #0ff;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+            background: #000;
+        }
+        .info {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-<div class="game">
-  <h1>RETRO SQUASH</h1>
-  <div class="info">
-    <span>PONT: <b id="score">0</b></span>
-    <span>REKORD: <b id="best">0</b></span>
-    <span>ÉLET: <b id="lives">3</b></span>
-  </div>
-  <canvas id="game" width="720" height="480"></canvas>
-  <div>
-    <button id="start">JÁTÉK INDÍTÁSA</button>
-    <button id="pause">SZÜNET</button>
-  </div>
-  <p>
-    MOZGÁS: ← → vagy A / D<br>
-    MOBILON: húzd az ujjad a pályán<br>
-    Üsd vissza a labdát, és gyűjts minél több pontot!
-  </p>
-</div>
 
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const W = canvas.width, H = canvas.height;
+    <h1>RETRO PONG BREAKOUT</h1>
+    <div class="info">Pontszám: <span id="score">0</span> | Életek: <span id="lives">3</span></div>
+    
+    <div id="game-container">
+        <canvas id="gameCanvas" width="480" height="320"></canvas>
+    </div>
 
-let paddle = { x: W/2-55, y: H-38, w: 110, h: 10 };
-let ball = { x: W/2, y: H-65, r: 7, vx: 3.2, vy: -4 };
-let score = 0, lives = 3;
-let best = Number(localStorage.getItem("squash84best") || 0);
-let running = false, paused = false, gameOver = false;
-let keys = {};
-let particles = [];
-let audio;
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+        const livesElement = document.getElementById("lives");
 
-document.getElementById("best").textContent = best;
+        let score = 0;
+        let lives = 3;
 
-function resetBall() {
-  ball.x = W/2;
-  ball.y = H-65;
-  ball.vx = (Math.random() < .5 ? -1 : 1) * 3.2;
-  ball.vy = -4;
-  paddle.x = W/2-paddle.w/2;
-}
+        // Labda tulajdonságai
+        let x = canvas.width / 2;
+        let y = canvas.height - 30;
+        let dx = 2;
+        let dy = -2;
+        const ballRadius = 6;
 
-function startGame() {
-  score = 0; lives = 3;
-  particles = [];
-  resetBall();
-  gameOver = false;
-  paused = false;
-  running = true;
-  updateInfo();
-}
+        // Ütő (lapát) tulajdonságai
+        const paddleHeight = 10;
+        const paddleWidth = 75;
+        let paddleX = (canvas.width - paddleWidth) / 2;
 
-function updateInfo() {
-  document.getElementById("score").textContent = score;
-  document.getElementById("lives").textContent = lives;
-  document.getElementById("best").textContent = best;
-}
+        // Billentyűk vezérlése
+        let rightPressed = false;
+        let leftPressed = false;
 
-function beep(freq = 440, duration = .05) {
-  try {
-    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === "suspended") audio.resume();
-    const osc = audio.createOscillator();
-    const gain = audio.createGain();
-    osc.frequency.value = freq;
-    osc.type = "square";
-    gain.gain.value = .035;
-    osc.connect(gain);
-    gain.connect(audio.destination);
-    osc.start();
-    gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + duration);
-    osc.stop(audio.currentTime + duration);
-  } catch(e) {}
-}
+        // Téglák (kockák) tulajdonságai
+        const brickRowCount = 4;
+        const brickColumnCount = 7;
+        const brickWidth = 55;
+        const brickHeight = 20;
+        const brickPadding = 10;
+        const brickOffsetTop = 30;
+        const brickOffsetLeft = 20;
 
-function burst(x, y, color) {
-  for(let i=0;i<9;i++) {
-    particles.push({
-      x,y,
-      vx:(Math.random()-.5)*5,
-      vy:(Math.random()-.5)*5,
-      life:20,
-      color
-    });
-  }
-}
+        let bricks = [];
+        function initBricks() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    bricks[c][r] = { x: 0, y: 0, status: 1 };
+                }
+            }
+        }
+        initBricks();
 
-function draw() {
-  ctx.fillStyle = "#090d19";
-  ctx.fillRect(0,0,W,H);
+        document.addEventListener("keydown", keyDownHandler, false);
+        document.addEventListener("keyup", keyUpHandler, false);
+        document.addEventListener("mousemove", mouseMoveHandler, false);
 
-  // Retro rácsvonalak
-  ctx.strokeStyle = "#18283a";
-  ctx.lineWidth = 1;
-  for(let y=0;y<H;y+=24) {
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
-  }
-  ctx.strokeStyle = "#243b46";
-  ctx.strokeRect(14,14,W-28,H-28);
-  ctx.strokeStyle = "#ff38dc";
-  ctx.beginPath();
-  ctx.moveTo(14,95); ctx.lineTo(W-14,95);
-  ctx.stroke();
+        function keyDownHandler(e) {
+            if (e.key === "Right" || e.key === "ArrowRight") {
+                rightPressed = true;
+            } else if (e.key === "Left" || e.key === "ArrowLeft") {
+                leftPressed = true;
+            }
+        }
 
-  // Labda nyoma
-  ctx.fillStyle = "#00ff9944";
-  ctx.beginPath();
-  ctx.arc(ball.x-ball.vx*2,ball.y-ball.vy*2,ball.r,0,Math.PI*2);
-  ctx.fill();
+        function keyUpHandler(e) {
+            if (e.key === "Right" || e.key === "ArrowRight") {
+                rightPressed = false;
+            } else if (e.key === "Left" || e.key === "ArrowLeft") {
+                leftPressed = false;
+            }
+        }
 
-  // Labda
-  ctx.shadowBlur = 18;
-  ctx.shadowColor = "#00ff99";
-  ctx.fillStyle = "#00ff99";
-  ctx.beginPath();
-  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
+        function mouseMoveHandler(e) {
+            let relativeX = e.clientX - canvas.offsetLeft - (window.innerWidth - canvas.width) / 2;
+            if (relativeX > 0 && relativeX < canvas.width) {
+                paddleX = relativeX - paddleWidth / 2;
+            }
+        }
 
-  // Ütő
-  ctx.shadowBlur = 14;
-  ctx.shadowColor = "#ff38dc";
-  ctx.fillStyle = "#ff38dc";
-  ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);
-  ctx.shadowBlur = 0;
+        // Téglák ütközésvizsgálata
+        function collisionDetection() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    let b = bricks[c][r];
+                    if (b.status === 1) {
+                        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+                            dy = -dy;
+                            b.status = 0;
+                            score += 10;
+                            scoreElement.innerText = score;
+                            
+                            // Ellenőrzés, hogy nyert-e a játékos
+                            if (score === brickRowCount * brickColumnCount * 10) {
+                                alert("GRATULÁLOM, NYERTÉL!");
+                                document.location.reload();
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-  // Részecskék
-  particles.forEach(p => {
-    ctx.globalAlpha = Math.max(0,p.life/20);
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x,p.y,4,4);
-    ctx.globalAlpha = 1;
-  });
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#0ff";
+            ctx.fill();
+            ctx.closePath();
+        }
 
-  if(!running || paused || gameOver) {
-    ctx.fillStyle = "#080812dd";
-    ctx.fillRect(0,0,W,H);
-    ctx.textAlign = "center";
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = "#ff38dc";
-    ctx.fillStyle = "#ff38dc";
-    ctx.font = "bold  thirty 30px monospace";
-    ctx.fillText(
-      gameOver ? "JÁTÉK VÉGE" : paused ? "SZÜNET" : "READY PLAYER ONE",
-      W/2,H/2-10
-    );
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#00ff99";
-    ctx.font = "16px monospace";
-    ctx.fillText(
-      gameOver ? "PONT: "+score : paused ? "Nyomd meg a SZÜNET gombot" : "INDÍTSD EL A JÁTÉKOT!",
-      W/2,H/2+28
-    );
-  }
-}
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+            ctx.fillStyle = "#f0f";
+            ctx.fill();
+            ctx.closePath();
+        }
 
-function update() {
-  if(running && !paused && !gameOver) {
-    if(keys.ArrowLeft || keys.a) paddle.x -= 7;
-    if(keys.ArrowRight || keys.d) paddle.x += 7;
-    paddle.x = Math.max(16,Math.min(W-16-paddle.w,paddle.x));
+        function drawBricks() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status === 1) {
+                        let brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
+                        let brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickX; // Javítva y-ra
+                        bricks[c][r].y = brickY;
+                        
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        ctx.fillStyle = r % 2 === 0 ? "#ff0" : "#0f0";
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
 
-    ball.x += ball.vx;
-    ball.y += ball.vy;
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBricks();
+            drawBall();
+            drawPaddle();
+            collisionDetection();
 
-    if(ball.x-ball.r < 16 || ball.x+ball.r > W-16) {
-      ball.vx *= -1;
-      ball.x = Math.max(16+ball.r,Math.min(W-16-ball.r,ball.x));
-      beep(300);
-    }
+            // Falak ütközése (bal és jobb)
+            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+                dx = -dx;
+            }
+            // Felső fal ütközése
+            if (y + dy < ballRadius) {
+                dy = -dy;
+            } 
+            // Alsó rész (ütő vagy élet vesztés)
+            else if (y + dy > canvas.height - ballRadius) {
+                if (x > paddleX && x < paddleX + paddleWidth) {
+                    dy = -dy;
+                } else {
+                    lives--;
+                    livesElement.innerText = lives;
+                    if (!lives) {
+                        alert("VÉGE A JÁTÉKNAK!");
+                        document.location.reload();
+                    } else {
+                        x = canvas.width / 2;
+                        y = canvas.height - 30;
+                        dx = 2;
+                        dy = -2;
+                        paddleX = (canvas.width - paddleWidth) / 2;
+                    }
+                }
+            }
 
-    if(ball.y-ball.r < 16) {
-      ball.vy = Math.abs(ball.vy);
-      beep(350);
-    }
+            // Ütő mozgása billentyűzettel
+            if (rightPressed && paddleX < canvas.width - paddleWidth) {
+                paddleX += 5;
+            } else if (leftPressed && paddleX > 0) {
+                paddleX -= 5;
+            }
 
-    if(ball.vy > 0 &&
-       ball.y+ball.r >= paddle.y &&
-       ball.y-ball.r <= paddle.y+paddle.h &&
-       ball.x >= paddle.x &&
-       ball.x <= paddle.x+paddle.w) {
-      const hit = (ball.x-(paddle.x+paddle.w/2))/(paddle.w/2);
-      ball.vx = hit*5.5;
-      ball.vy = -Math.max(4,Math.min(8,Math.abs(ball.vy)+.12));
-      ball.y = paddle.y-ball.r;
-      score++;
-      if(score>best) {
-        best=score;
-        localStorage.setItem("squash84best",best);
-      }
-      burst(ball.x,ball.y,"#ff38dc");
-      beep(520+Math.min(score*5,500));
-      updateInfo();
-    }
+            x += dx;
+            y += dy;
+            requestAnimationFrame(draw);
+        }
 
-    if(ball.y-ball.r > H) {
-      lives--;
-      beep(140,.2);
-      updateInfo();
-      if(lives<=0) {
-        running=false;
-        gameOver=true;
-      } else resetBall();
-    }
-
-    // Nehezítés
-    ball.vx = Math.max(-8,Math.min(8,ball.vx));
-    particles.forEach(p=>{
-      p.x+=p.vx; p.y+=p.vy; p.life--;
-    });
-    particles=particles.filter(p=>p.life>0);
-  }
-}
-
-function loop() {
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-
-document.addEventListener("keydown",e=>{
-  keys[e.key]=true;
-  if(["ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
-  if(e.key===" " && !running && !gameOver) startGame();
-});
-document.addEventListener("keyup",e=>keys[e.key]=false);
-
-function movePaddle(e) {
-  const rect=canvas.getBoundingClientRect();
-  const x=(e.clientX-rect.left)/rect.width*W;
-  paddle.x=Math.max(16,Math.min(W-16-paddle.w,x-paddle.w/2));
-}
-canvas.addEventListener("pointermove",e=>{
-  if(e.pointerType==="touch" || e.buttons>0) movePaddle(e);
-});
-canvas.addEventListener("pointerdown",e=>{
-  canvas.setPointerCapture(e.pointerId);
-  movePaddle(e);
-});
-
-document.getElementById("start").addEventListener("click",()=>{
-  startGame();
-  beep(600);
-});
-document.getElementById("pause").addEventListener("click",()=>{
-  if(running) paused=!paused;
-  else if(!gameOver) startGame();
-});
-
-loop();
-</script>
+        draw();
+    </script>
 </body>
 </html>
-
-body {
-  background: #090510;
-  color: #39ff14;
-  font-family: monospace;
-}
-
-h1 {
-  color: #ff00ff;
-  text-shadow: 0 0 5px #ff00ff, 0 0 20px #ff00ff;
-  letter-spacing: 6px;
-}
-
-canvas {
-  border: 3px solid #39ff14;
-  box-shadow: 0 0 20px #39ff1480;
-  image-rendering: pixelated;
-}
-
-.game {
-  position: relative;
-}
-
-.game::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0px,
-    transparent 3px,
-    #00000035 4px
-  );
-}
-
-button {
-  background: #ff00ff;
-  color: #000;
-  border: 2px solid #fff;
-  box-shadow: 4px 4px #39ff14;
-  text-transform: uppercase;
-  font-weight: bold;
-}
-
-button:hover {
-  background: #39ff14;
-  box-shadow: 0 0 18px #39ff14;
-}
