@@ -1,249 +1,308 @@
+
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Fallabda (Pong)</title>
-    <style>
-        body {
-            background-color: #0b0f0b;
-            color: #00ff66;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-
-        h1 {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px #00ff66;
-            letter-spacing: 2px;
-        }
-
-        #game-container {
-            position: relative;
-            box-shadow: 0 0 25px rgba(0, 255, 102, 0.3);
-            border: 4px solid #00ff66;
-            background-color: #000;
-        }
-
-        canvas {
-            display: block;
-        }
-
-        .instructions {
-            margin-top: 15px;
-            font-size: 0.9rem;
-            text-align: center;
-            color: #88cc99;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RETRO SQUASH 84</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #080812;
+  color: #00ff99;
+  font-family: monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.game { width: min(94vw, 760px); text-align: center; }
+h1 {
+  color: #ff38dc;
+  text-shadow: 0 0 12px #ff38dc;
+  letter-spacing: 5px;
+}
+.info {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 4px;
+  font-size: 15px;
+}
+canvas {
+  display: block;
+  width: 100%;
+  border: 3px solid #00ff99;
+  box-shadow: 0 0 20px #00ff9944;
+  background: #090d19;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+button {
+  margin: 14px 5px;
+  padding: 12px 22px;
+  background: #ff38dc;
+  color: #080812;
+  border: 0;
+  font: bold 15px monospace;
+  cursor: pointer;
+}
+button:hover { background: #fff; }
+p { color: #aaa; font-size: 12px; line-height: 1.8; }
+</style>
 </head>
 <body>
+<div class="game">
+  <h1>RETRO SQUASH</h1>
+  <div class="info">
+    <span>PONT: <b id="score">0</b></span>
+    <span>REKORD: <b id="best">0</b></span>
+    <span>ÉLET: <b id="lives">3</b></span>
+  </div>
+  <canvas id="game" width="720" height="480"></canvas>
+  <div>
+    <button id="start">JÁTÉK INDÍTÁSA</button>
+    <button id="pause">SZÜNET</button>
+  </div>
+  <p>
+    MOZGÁS: ← → vagy A / D<br>
+    MOBILON: húzd az ujjad a pályán<br>
+    Üsd vissza a labdát, és gyűjts minél több pontot!
+  </p>
+</div>
 
-    <h1>RETRO PONG</h1>
-    
-    <div id="game-container">
-        <canvas id="pongCanvas" width="800" height="500"></canvas>
-    </div>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const W = canvas.width, H = canvas.height;
 
-    <div class="instructions">
-        Irányítás: <strong>FEL / LE nyilak</strong> vagy <strong>W / S</strong> billentyűk
-    </div>
+let paddle = { x: W/2-55, y: H-38, w: 110, h: 10 };
+let ball = { x: W/2, y: H-65, r: 7, vx: 3.2, vy: -4 };
+let score = 0, lives = 3;
+let best = Number(localStorage.getItem("squash84best") || 0);
+let running = false, paused = false, gameOver = false;
+let keys = {};
+let particles = [];
+let audio;
 
-    <script>
-        const canvas = document.getElementById("pongCanvas");
-        const ctx = canvas.getContext("2d");
+document.getElementById("best").textContent = best;
 
-        // Játékállapot objektumok
-        const ball = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            radius: 8,
-            speed: 5,
-            velocityX: 5,
-            velocityY: 5
-        };
+function resetBall() {
+  ball.x = W/2;
+  ball.y = H-65;
+  ball.vx = (Math.random() < .5 ? -1 : 1) * 3.2;
+  ball.vy = -4;
+  paddle.x = W/2-paddle.w/2;
+}
 
-        const player = {
-            x: 20,
-            y: canvas.height / 2 - 40,
-            width: 12,
-            height: 80,
-            score: 0,
-            speed: 8,
-            yChange: 0
-        };
+function startGame() {
+  score = 0; lives = 3;
+  particles = [];
+  resetBall();
+  gameOver = false;
+  paused = false;
+  running = true;
+  updateInfo();
+}
 
-        const ai = {
-            x: canvas.width - 32,
-            y: canvas.height / 2 - 40,
-            width: 12,
-            height: 80,
-            score: 0,
-            speed: 4.5 // Az AI sebessége (itt lehet nehezíteni vagy könnyíteni)
-        };
+function updateInfo() {
+  document.getElementById("score").textContent = score;
+  document.getElementById("lives").textContent = lives;
+  document.getElementById("best").textContent = best;
+}
 
-        // Billentyűzet figyelése
-        const keys = {};
-        window.addEventListener("keydown", (e) => {
-            keys[e.key] = true;
-        });
-        window.addEventListener("keyup", (e) => {
-            keys[e.key] = false;
-        });
+function beep(freq = 440, duration = .05) {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === "suspended") audio.resume();
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.frequency.value = freq;
+    osc.type = "square";
+    gain.gain.value = .035;
+    osc.connect(gain);
+    gain.connect(audio.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + duration);
+    osc.stop(audio.currentTime + duration);
+  } catch(e) {}
+}
 
-        function handleInput() {
-            if (keys["ArrowUp"] || keys["w"] || keys["W"]) {
-                player.y -= player.speed;
-            }
-            if (keys["ArrowDown"] || keys["s"] || keys["S"]) {
-                player.y += player.speed;
-            }
+function burst(x, y, color) {
+  for(let i=0;i<9;i++) {
+    particles.push({
+      x,y,
+      vx:(Math.random()-.5)*5,
+      vy:(Math.random()-.5)*5,
+      life:20,
+      color
+    });
+  }
+}
 
-            // Pálya határainak ellenőrzése a játékosnak
-            if (player.y < 0) player.y = 0;
-            if (player.y + player.height > canvas.height) {
-                player.y = canvas.height - player.height;
-            }
-        }
+function draw() {
+  ctx.fillStyle = "#090d19";
+  ctx.fillRect(0,0,W,H);
 
-        // Ütközésvizsgálat (labda és ütő között)
-        function collision(b, p) {
-            b.top = b.y - b.radius;
-            b.bottom = b.y + b.radius;
-            b.left = b.x - b.radius;
-            b.right = b.x + b.radius;
+  // Retro rácsvonalak
+  ctx.strokeStyle = "#18283a";
+  ctx.lineWidth = 1;
+  for(let y=0;y<H;y+=24) {
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+  ctx.strokeStyle = "#243b46";
+  ctx.strokeRect(14,14,W-28,H-28);
+  ctx.strokeStyle = "#ff38dc";
+  ctx.beginPath();
+  ctx.moveTo(14,95); ctx.lineTo(W-14,95);
+  ctx.stroke();
 
-            p.top = p.y;
-            p.bottom = p.y + p.height;
-            p.left = p.x;
-            p.right = p.x + p.width;
+  // Labda nyoma
+  ctx.fillStyle = "#00ff9944";
+  ctx.beginPath();
+  ctx.arc(ball.x-ball.vx*2,ball.y-ball.vy*2,ball.r,0,Math.PI*2);
+  ctx.fill();
 
-            return b.right > p.left && b.bottom > p.top && b.left < p.right && b.top < p.bottom;
-        }
+  // Labda
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = "#00ff99";
+  ctx.fillStyle = "#00ff99";
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
 
-        // Labda alaphelyzetbe állítása pont után
-        function resetBall(winner) {
-            ball.x = canvas.width / 2;
-            ball.y = canvas.height / 2;
-            ball.speed = 5;
-            // A vesztes felé induljon a labda
-            ball.velocityX = winner === 'player' ? 5 : -5;
-            ball.velocityY = (Math.random() * 6) - 3;
-        }
+  // Ütő
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = "#ff38dc";
+  ctx.fillStyle = "#ff38dc";
+  ctx.fillRect(paddle.x,paddle.y,paddle.w,paddle.h);
+  ctx.shadowBlur = 0;
 
-        // Játék logika frissítése
-        function update() {
-            handleInput();
+  // Részecskék
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0,p.life/20);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x,p.y,4,4);
+    ctx.globalAlpha = 1;
+  });
 
-            // Labda mozgatása
-            ball.x += ball.velocityX;
-            ball.y += ball.velocityY;
+  if(!running || paused || gameOver) {
+    ctx.fillStyle = "#080812dd";
+    ctx.fillRect(0,0,W,H);
+    ctx.textAlign = "center";
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = "#ff38dc";
+    ctx.fillStyle = "#ff38dc";
+    ctx.font = "bold  thirty 30px monospace";
+    ctx.fillText(
+      gameOver ? "JÁTÉK VÉGE" : paused ? "SZÜNET" : "READY PLAYER ONE",
+      W/2,H/2-10
+    );
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#00ff99";
+    ctx.font = "16px monospace";
+    ctx.fillText(
+      gameOver ? "PONT: "+score : paused ? "Nyomd meg a SZÜNET gombot" : "INDÍTSD EL A JÁTÉKOT!",
+      W/2,H/2+28
+    );
+  }
+}
 
-            // Egyszerű AI a jobb oldali ütőhöz (követi a labdát Y tengelyen)
-            let aiCenter = ai.y + ai.height / 2;
-            if (aiCenter < ball.y - 10) {
-                ai.y += ai.speed;
-            } else if (aiCenter > ball.y + 10) {
-                ai.y -= ai.speed;
-            }
+function update() {
+  if(running && !paused && !gameOver) {
+    if(keys.ArrowLeft || keys.a) paddle.x -= 7;
+    if(keys.ArrowRight || keys.d) paddle.x += 7;
+    paddle.x = Math.max(16,Math.min(W-16-paddle.w,paddle.x));
 
-            // AI pályahatárok
-            if (ai.y < 0) ai.y = 0;
-            if (ai.y + ai.height > canvas.height) {
-                ai.y = canvas.height - ai.height;
-            }
+    ball.x += ball.vx;
+    ball.y += ball.vy;
 
-            // Felső és alsó fal ütközés
-            if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
-                ball.velocityY = -ball.velocityY;
-            }
+    if(ball.x-ball.r < 16 || ball.x+ball.r > W-16) {
+      ball.vx *= -1;
+      ball.x = Math.max(16+ball.r,Math.min(W-16-ball.r,ball.x));
+      beep(300);
+    }
 
-            // Melyik ütővel ütközhet?
-            let activePaddle = (ball.x < canvas.width / 2) ? player : ai;
+    if(ball.y-ball.r < 16) {
+      ball.vy = Math.abs(ball.vy);
+      beep(350);
+    }
 
-            if (collision(ball, activePaddle)) {
-                // Számoljuk ki, hol találta el az ütőt (hogy változzon a visszaverődés szöge)
-                let collidePoint = ball.y - (activePaddle.y + activePaddle.height / 2);
-                collidePoint = collidePoint / (activePaddle.height / 2);
+    if(ball.vy > 0 &&
+       ball.y+ball.r >= paddle.y &&
+       ball.y-ball.r <= paddle.y+paddle.h &&
+       ball.x >= paddle.x &&
+       ball.x <= paddle.x+paddle.w) {
+      const hit = (ball.x-(paddle.x+paddle.w/2))/(paddle.w/2);
+      ball.vx = hit*5.5;
+      ball.vy = -Math.max(4,Math.min(8,Math.abs(ball.vy)+.12));
+      ball.y = paddle.y-ball.r;
+      score++;
+      if(score>best) {
+        best=score;
+        localStorage.setItem("squash84best",best);
+      }
+      burst(ball.x,ball.y,"#ff38dc");
+      beep(520+Math.min(score*5,500));
+      updateInfo();
+    }
 
-                // Szög kiszámítása
-                let angleRad = (Math.PI / 4) * collidePoint;
+    if(ball.y-ball.r > H) {
+      lives--;
+      beep(140,.2);
+      updateInfo();
+      if(lives<=0) {
+        running=false;
+        gameOver=true;
+      } else resetBall();
+    }
 
-                // Irány váltás
-                let direction = (ball.x < canvas.width / 2) ? 1 : -1;
+    // Nehezítés
+    ball.vx = Math.max(-8,Math.min(8,ball.vx));
+    particles.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.life--;
+    });
+    particles=particles.filter(p=>p.life>0);
+  }
+}
 
-                ball.velocityX = direction * ball.speed * Math.cos(angleRad);
-                ball.velocityY = ball.speed * Math.sin(angleRad);
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
 
-                // Sebesség növelése ahogy telik az idő
-                ball.speed += 0.3;
-            }
+document.addEventListener("keydown",e=>{
+  keys[e.key]=true;
+  if(["ArrowLeft","ArrowRight"," "].includes(e.key)) e.preventDefault();
+  if(e.key===" " && !running && !gameOver) startGame();
+});
+document.addEventListener("keyup",e=>keys[e.key]=false);
 
-            // Pontozás (Gólok)
-            if (ball.x - ball.radius < 0) {
-                ai.score++;
-                resetBall('ai');
-            } else if (ball.x + ball.radius > canvas.width) {
-                player.score++;
-                resetBall('player');
-            }
-        }
+function movePaddle(e) {
+  const rect=canvas.getBoundingClientRect();
+  const x=(e.clientX-rect.left)/rect.width*W;
+  paddle.x=Math.max(16,Math.min(W-16-paddle.w,x-paddle.w/2));
+}
+canvas.addEventListener("pointermove",e=>{
+  if(e.pointerType==="touch" || e.buttons>0) movePaddle(e);
+});
+canvas.addEventListener("pointerdown",e=>{
+  canvas.setPointerCapture(e.pointerId);
+  movePaddle(e);
+});
 
-        // Kirajzolás a vászonra
-        function draw() {
-            // Háttér törlése
-            ctx.fillStyle = "#000000";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+document.getElementById("start").addEventListener("click",()=>{
+  startGame();
+  beep(600);
+});
+document.getElementById("pause").addEventListener("click",()=>{
+  if(running) paused=!paused;
+  else if(!gameOver) startGame();
+});
 
-            // Középső szaggatott vonal
-            ctx.strokeStyle = "#00ff6655";
-            ctx.lineWidth = 4;
-            ctx.setLineDash([10, 10]);
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.stroke();
-            ctx.setLineDash([]); // Visszaállítás
-
-            // Pontszámok kirajzolása
-            ctx.fillStyle = "#00ff66";
-            ctx.font = "50px 'Courier New'";
-            ctx.textAlign = "center";
-            ctx.fillText(player.score, canvas.width / 4, 70);
-            ctx.fillText(ai.score, (canvas.width / 4) * 3, 70);
-
-            // Játékos ütő
-            ctx.fillStyle = "#00ff66";
-            ctx.fillRect(player.x, player.y, player.width, player.height);
-
-            // AI ütő
-            ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
-
-            // Labda
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2, false);
-            ctx.fillStyle = "#00ff66";
-            ctx.fill();
-            ctx.closePath();
-        }
-
-        // Fő játékciklus
-        function gameLoop() {
-            update();
-            draw();
-        }
-
-        // Képfrissítéshez igazított ütemezés (FPS)
-        const fps = 60;
-        setInterval(gameLoop, 1000 / fps);
-    </script>
-
+loop();
+</script>
 </body>
 </html>
