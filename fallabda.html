@@ -306,3 +306,52 @@ loop();
 </script>
 </body>
 </html>
+
+body {
+  background: #090510;
+  color: #39ff14;
+  font-family: monospace;
+}
+
+h1 {
+  color: #ff00ff;
+  text-shadow: 0 0 5px #ff00ff, 0 0 20px #ff00ff;
+  letter-spacing: 6px;
+}
+
+canvas {
+  border: 3px solid #39ff14;
+  box-shadow: 0 0 20px #39ff1480;
+  image-rendering: pixelated;
+}
+
+.game {
+  position: relative;
+}
+
+.game::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    #00000035 4px
+  );
+}
+
+button {
+  background: #ff00ff;
+  color: #000;
+  border: 2px solid #fff;
+  box-shadow: 4px 4px #39ff14;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+button:hover {
+  background: #39ff14;
+  box-shadow: 0 0 18px #39ff14;
+}
