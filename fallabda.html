@@ -3,460 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nagy Retró Fallabda (Breakout)</title>
+    <title>Retro Pong Játék</title>
     <style>
         body {
-            background-color: #0b0b1a;
-            color: #0ff;
+            background-color: #111;
+            color: #00ff00;
             font-family: 'Courier New', Courier, monospace;
-            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
             margin: 0;
-            padding: 20px;
+            overflow: hidden;
         }
+
         h1 {
-            margin-bottom: 5px;
-            text-shadow: 0 0 15px #0ff;
-            font-size: 32px;
-        }
-        #game-container {
-            display: inline-block;
-            border: 6px solid #0ff;
-            box-shadow: 0 0 30px #0ff;
-            background-color: #000;
-            margin-top: 15px;
-        }
-        canvas {
-            display: block;
-            background: #000;
-        }
-        .info {
-            font-size: 24px;
             margin-bottom: 10px;
-            font-weight: bold;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        canvas {
+            border: 4px solid #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+            background-color: #000;
+        }
+
+        .instructions {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #00aa00;
         }
     </style>
 </head>
 <body>
 
-    <h1>RETRO PONG BREAKOUT - NAGY MÉRET</h1>
-    <div class="info">Pontszám: <span id="score">0</span> | Életek: <span id="lives">3</span></div>
-    
-    <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-    </div>
+    <h1>RETRO PONG</h1>
+    <canvas id="pongCanvas" width="800" height="400"></canvas>
+    <div class="instructions">Irányítás: Mozgasd az egeret fel-le a bal oldali ütőhöz.</div>
 
     <script>
-        const canvas = document.getElementById("gameCanvas");
+        const canvas = document.getElementById("pongCanvas");
         const ctx = canvas.getContext("2d");
-        const scoreElement = document.getElementById("score");
-        const livesElement = document.getElementById("lives");
 
-        let score = 0;
-        let lives = 3;
+        // Labda objektum
+        const ball = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 10,
+            speed: 5,
+            velocityX: 5,
+            velocityY: 5,
+            color: "#00ff00"
+        };
 
-        let x = canvas.width / 2;
-        let y = canvas.height - 50;
-        let dx = 4;
-        let dy = -4;
-        const ballRadius = 9;
+        // Játékos ütő (bal oldal)
+        const player = {
+            x: 10,
+            y: canvas.height / 2 - 40,
+            width: 12,
+            height: 80,
+            score: 0,
+            color: "#00ff00"
+        };
 
-        const paddleHeight = 14;
-        const paddleWidth = 120;
-        let paddleX = (canvas.width - paddleWidth) / 2;
+        // AI ütő (jobb oldal)
+        const ai = {
+            x: canvas.width - 22,
+            y: canvas.height / 2 - 40,
+            width: 12,
+            height: 80,
+            score: 0,
+            color: "#00ff00"
+        };
 
-        let rightPressed = false;
-        let leftPressed = false;
+        // Egér mozgásának figyelése a játékos irányításához
+        canvas.addEventListener("mousemove", (evt) => {
+            let rect = canvas.getBoundingClientRect();
+            let root = document.documentElement;
+            let mouseY = evt.clientY - rect.top - root.scrollTop;
+            player.y = mouseY - player.height / 2;
 
-        const brickRowCount = 6;
-        const brickColumnCount = 10;
-        const brickWidth = 68;
-        const brickHeight = 22;
-        const brickPadding = 10;
-        const brickOffsetTop = 50;
-        const brickOffsetLeft = 40;
+            // Ne menjen ki a képernyőről
+            if (player.y < 0) player.y = 0;
+            if (player.y > canvas.height - player.height) player.y = canvas.height - player.height;
+        });
 
-        let bricks = [];
-        function initBricks() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                bricks[c] = [];
-                for (let r = 0; r < brickRowCount; r++) {
-                    bricks[c][r] = { x: 0, y: 0, status: 1 };
-                }
-            }
-        }
-        initBricks();
+        // Ütközésvizsgálat
+        function collision(b, p) {
+            b.top = b.y - b.radius;
+            b.bottom = b.y + b.radius;
+            b.left = b.x - b.radius;
+            b.right = b.x + b.radius;
 
-        document.addEventListener("keydown", keyDownHandler, false);
-        document.addEventListener("keyup", keyUpHandler, false);
-        document.addEventListener("mousemove", mouseMoveHandler, false);
+            p.top = p.y;
+            p.bottom = p.y + p.height;
+            p.left = p.x;
+            p.right = p.x + p.width;
 
-        function keyDownHandler(e) {
-            if (e.key === "Right" || e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-                rightPressed = true;
-            } else if (e.key === "Left" || e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-                leftPressed = true;
-            }
-        }
-
-        function keyUpHandler(e) {
-            if (e.key === "Right" || e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
-                rightPressed = false;
-            } else if (e.key === "Left" || e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
-                leftPressed = false;
-            }
-        }
-
-        function mouseMoveHandler(e) {
-            let relativeX = e.clientX - canvas.offsetLeft - (window.innerWidth - canvas.width) / 2;
-            if (relativeX > 0 && relativeX < canvas.width) {
-                paddleX = relativeX - paddleWidth / 2;
-            }
+            return b.right > p.left && b.bottom > p.top && b.left < p.right && b.top < p.bottom;
         }
 
-        function collisionDetection() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                for (let r = 0; r < brickRowCount; r++) {
-                    let b = bricks[c][r];
-                    if (b.status === 1) {
-                        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
-                            dy = -dy;
-                            b.status = 0;
-                            score += 10;
-                            scoreElement.innerText = score;
-                            
-                            if (score === brickRowCount * brickColumnCount * 10) {
-                                alert("GRATULÁLOM, NYERTÉL!");
-                                document.location.reload();
-                            }
-                        }
-                    }
-                }
+        // Labda alaphelyzetbe állítása pont után
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.velocityX = -ball.velocityX;
+            ball.speed = 5;
+        }
+
+        // Játékállapot frissítése
+        function update() {
+            // Labda mozggatása
+            ball.x += ball.velocityX;
+            ball.y += ball.velocityY;
+
+            // AI egyszerű intelligenciája (követi a labdát)
+            let aiSpeed = 0.08; // Minél nagyobb, annál nehezebb legyőzni
+            ai.y += (ball.y - (ai.y + ai.height / 2)) * aiSpeed;
+
+            // AI határok ellenőrzése
+            if (ai.y < 0) ai.y = 0;
+            if (ai.y > canvas.height - ai.height) ai.y = canvas.height - ai.height;
+
+            // Felső és alsó falak elérése
+            if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
+                ball.velocityY = -ball.velocityY;
+            }
+
+            // Kijelöljük, hogy épp melyik ütővel ütközhet
+            let activePaddle = (ball.x < canvas.width / 2) ? player : ai;
+
+            if (collision(ball, activePaddle)) {
+                // Hol találta el az ütőt? (forgásszög módosításához)
+                let collidePoint = ball.y - (activePaddle.y + activePaddle.height / 2);
+                collidePoint = collidePoint / (activePaddle.height / 2);
+
+                // Szög kiszámítása radiánban (max 45 fok)
+                let angleRad = (Math.PI / 4) * collidePoint;
+
+                // Irány váltása
+                let direction = (ball.x < canvas.width / 2) ? 1 : -1;
+
+                ball.velocityX = direction * ball.speed * Math.cos(angleRad);
+                ball.velocityY = ball.speed * Math.sin(angleRad);
+
+                // Sebesség növelése minden ütésnél
+                ball.speed += 0.3;
+            }
+
+            // Pontszámok frissítése
+            if (ball.x - ball.radius < 0) {
+                ai.score++;
+                resetBall();
+            } else if (ball.x + ball.radius > canvas.width) {
+                player.score++;
+                resetBall();
             }
         }
 
-        function drawBall() {
+        // Grafika kirajzolása
+        function render() {
+            // Háttér törlése
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Középvonal (retro szaggatott vonal)
+            ctx.strokeStyle = "#00ff00";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
             ctx.beginPath();
-            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "#0ff";
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "#0ff";
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]); // Visszaállítjuk az alapvonalra
+
+            // Pontszámok kirajzolása
+            ctx.font = "40px 'Courier New'";
+            ctx.fillStyle = "#00ff00";
+            ctx.textAlign = "center";
+            ctx.fillText(player.score, canvas.width / 4, 50);
+            ctx.fillText(ai.score, canvas.width * 3 / 4, 50);
+
+            // Játékos ütő
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // AI ütő
+            ctx.fillStyle = ai.color;
+            ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
+
+            // Labda (retro nézetben lehet négyzet vagy kör, itt kör)
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2, false);
+            ctx.fillStyle = ball.color;
             ctx.fill();
             ctx.closePath();
-            ctx.shadowBlur = 0;
         }
 
-        function drawPaddle() {
-            ctx.beginPath();
-            ctx.rect(paddleX, canvas.height - paddleHeight - 10, paddleWidth, paddleHeight);
-            ctx.fillStyle = "#f0f";
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "#f0f";
-            ctx.fill();
-            ctx.closePath();
-            ctx.shadowBlur = 0;
+        // Játék futtató hurok (Game Loop)
+        function gameLoop() {
+            update();
+            render();
         }
 
-        function drawBricks() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                for (let r = 0; r < brickRowCount; r++) {
-                    if (bricks[c][r].status === 1) {
-                        let brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
-                        let brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
-                        bricks[c][r].x = brickX;
-                        bricks[c][r].y = brickY;
-                        
-                        ctx.beginPath();
-                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                        if (r === 0) ctx.fillStyle = "#ff0055";
-                        else if (r === 1) ctx.fillStyle = "#ff5500";
-                        else if (r === 2) ctx.fillStyle = "#ffff00";
-                        else if (r === 3) ctx.fillStyle = "#00ff55";
-                        else if (r === 4) ctx.fillStyle = "#00ffff";
-                        else ctx.fillStyle = "#bf00ff";
-                        
-                        ctx.fill();
-                        ctx.closePath();
-                    }
-                }
-            }
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBricks();
-            drawBall();
-            drawPaddle();
-            collisionDetection();
-
-            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
-                dx = -dx;
-            }
-            if (y + dy < ballRadius) {
-                dy = -dy;
-            } 
-            else if (y + dy > canvas.height - ballRadius - 10) {
-                if (x > paddleX && x < paddleX + paddleWidth) {
-                    dy = -dy;
-                } else {
-                    lives--;
-                    livesElement.innerText = lives;
-                    if (!lives) {
-                        alert("VÉGE A JÁTÉKNAK!");
-                        document.location.reload();
-                    } else {
-                        x = canvas.width / 2;
-                        y = canvas.height - 50;
-                        dx = 4;
-                        dy = -4;
-                        paddleX = (canvas.width - paddleWidth) / 2;
-                    }<!DOCTYPE html>
-<html lang="hu">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nagy Retró Fallabda (Breakout)</title>
-    <style>
-        body {
-            background-color: #0b0b1a;
-            color: #0ff;
-            font-family: 'Courier New', Courier, monospace;
-            text-align: center;
-            margin: 0;
-            padding: 20px;
-        }
-        h1 {
-            margin-bottom: 5px;
-            text-shadow: 0 0 15px #0ff;
-            font-size: 32px;
-        }
-        #game-container {
-            display: inline-block;
-            border: 6px solid #0ff;
-            box-shadow: 0 0 30px #0ff;
-            background-color: #000;
-            margin-top: 15px;
-        }
-        canvas {
-            display: block;
-            background: #000;
-        }
-        .info {
-            font-size: 24px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-
-    <h1>RETRO PONG BREAKOUT - NAGY MÉRET</h1>
-    <div class="info">Pontszám: <span id="score">0</span> | Életek: <span id="lives">3</span></div>
-    
-    <div id="game-container">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-    </div>
-
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        const scoreElement = document.getElementById("score");
-        const livesElement = document.getElementById("lives");
-
-        let score = 0;
-        let lives = 3;
-
-        let x = canvas.width / 2;
-        let y = canvas.height - 50;
-        let dx = 4;
-        let dy = -4;
-        const ballRadius = 9;
-
-        const paddleHeight = 14;
-        const paddleWidth = 120;
-        let paddleX = (canvas.width - paddleWidth) / 2;
-
-        let rightPressed = false;
-        let leftPressed = false;
-
-        const brickRowCount = 6;
-        const brickColumnCount = 10;
-        const brickWidth = 68;
-        const brickHeight = 22;
-        const brickPadding = 10;
-        const brickOffsetTop = 50;
-        const brickOffsetLeft = 40;
-
-        let bricks = [];
-        function initBricks() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                bricks[c] = [];
-                for (let r = 0; r < brickRowCount; r++) {
-                    bricks[c][r] = { x: 0, y: 0, status: 1 };
-                }
-            }
-        }
-        initBricks();
-
-        // Billentyűzetfigyelők hozzáadása
-        document.addEventListener("keydown", keyDownHandler, false);
-        document.addEventListener("keyup", keyUpHandler, false);
-        document.addEventListener("mousemove", mouseMoveHandler, false);
-
-        function keyDownHandler(e) {
-            // A, D, valamint a bal és jobb nyilak kezelése
-            if (e.key === "d" || e.key === "D" || e.key === "ArrowRight") {
-                rightPressed = true;
-            } else if (e.key === "a" || e.key === "A" || e.key === "ArrowLeft") {
-                leftPressed = true;
-            }
-        }
-
-        function keyUpHandler(e) {
-            if (e.key === "d" || e.key === "D" || e.key === "ArrowRight") {
-                rightPressed = false;
-            } else if (e.key === "a" || e.key === "A" || e.key === "ArrowLeft") {
-                leftPressed = false;
-            }
-        }
-
-        function mouseMoveHandler(e) {
-            let relativeX = e.clientX - canvas.offsetLeft - (window.innerWidth - canvas.width) / 2;
-            if (relativeX > 0 && relativeX < canvas.width) {
-                paddleX = relativeX - paddleWidth / 2;
-            }
-        }
-
-        function collisionDetection() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                for (let r = 0; r < brickRowCount; r++) {
-                    let b = bricks[c][r];
-                    if (b.status === 1) {
-                        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
-                            dy = -dy;
-                            b.status = 0;
-                            score += 10;
-                            scoreElement.innerText = score;
-                            
-                            if (score === brickRowCount * brickColumnCount * 10) {
-                                alert("GRATULÁLOM, NYERTÉL!");
-                                document.location.reload();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        function drawBall() {
-            ctx.beginPath();
-            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
-            ctx.fillStyle = "#0ff";
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "#0ff";
-            ctx.fill();
-            ctx.closePath();
-            ctx.shadowBlur = 0;
-        }
-
-        function drawPaddle() {
-            ctx.beginPath();
-            ctx.rect(paddleX, canvas.height - paddleHeight - 10, paddleWidth, paddleHeight);
-            ctx.fillStyle = "#f0f";
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "#f0f";
-            ctx.fill();
-            ctx.closePath();
-            ctx.shadowBlur = 0;
-        }
-
-        function drawBricks() {
-            for (let c = 0; c < brickColumnCount; c++) {
-                for (let r = 0; r < brickRowCount; r++) {
-                    if (bricks[c][r].status === 1) {
-                        let brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
-                        let brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
-                        bricks[c][r].x = brickX;
-                        bricks[c][r].y = brickY;
-                        
-                        ctx.beginPath();
-                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                        if (r === 0) ctx.fillStyle = "#ff0055";
-                        else if (r === 1) ctx.fillStyle = "#ff5500";
-                        else if (r === 2) ctx.fillStyle = "#ffff00";
-                        else if (r === 3) ctx.fillStyle = "#00ff55";
-                        else if (r === 4) ctx.fillStyle = "#00ffff";
-                        else ctx.fillStyle = "#bf00ff";
-                        
-                        ctx.fill();
-                        ctx.closePath();
-                    }
-                }
-            }
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBricks();
-            drawBall();
-            drawPaddle();
-            collisionDetection();
-
-            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
-                dx = -dx;
-            }
-            if (y + dy < ballRadius) {
-                dy = -dy;
-            } 
-            else if (y + dy > canvas.height - ballRadius - 10) {
-                if (x > paddleX && x < paddleX + paddleWidth) {
-                    dy = -dy;
-                } else {
-                    lives--;
-                    livesElement.innerText = lives;
-                    if (!lives) {
-                        alert("VÉGE A JÁTÉKNAK!");
-                        document.location.reload();
-                    } else {
-                        x = canvas.width / 2;
-                        y = canvas.height - 50;
-                        dx = 4;
-                        dy = -4;
-                        paddleX = (canvas.width - paddleWidth) / 2;
-                    }
-                }
-            }
-
-            // Ütő mozgása az A/D vagy nyilak lenyomása alapján
-            if (rightPressed && paddleX < canvas.width - paddleWidth) {
-                paddleX += 7;
-            } else if (leftPressed && paddleX > 0) {
-                paddleX -= 7;
-            }
-
-            x += dx;
-            y += dy;
-            requestAnimationFrame(draw);
-        }
-
-        draw();
+        // Képkockák indítása (60 FPS)
+        const fps = 60;
+        setInterval(gameLoop, 1000 / fps);
     </script>
-</body>
-</html>
-                }
-            }
 
-            if (rightPressed && paddleX < canvas.width - paddleWidth) {
-                paddleX += 7;
-            } else if (leftPressed && paddleX > 0) {
-                paddleX -= 7;
-            }
-
-            x += dx;
-            y += dy;
-            requestAnimationFrame(draw);
-        }
-
-        draw();
-    </script>
 </body>
 </html>
