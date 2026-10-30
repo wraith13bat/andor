@@ -124,7 +124,7 @@
 
     <p id="progress">121 kérdés</p>
     <div id="question">Készen állsz?</div>
-    <div id="timer">5 másodperc</div>
+    <div id="timer">6 másodperc</div>
 
     <form id="answerForm" class="hidden">
         <input
@@ -150,7 +150,7 @@
 <script>
     const MIN = 0;
     const MAX = 10;
-    const TIME_LIMIT = 5;
+    const TIME_LIMIT = 6;
     const TOTAL_QUESTIONS = (MAX - MIN + 1) ** 2;
 
     const questionElement = document.getElementById("question");
@@ -301,7 +301,7 @@
         answerInput.disabled = true;
         submitButton.disabled = true;
 
-        nextQuestionTimeout = setTimeout(nextQuestion, 500);
+        nextQuestionTimeout = setTimeout(nextQuestion, 1000);
     }
 
     function recordWrongAnswer(userAnswer, reason) {
