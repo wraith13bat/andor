@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Művészeti Szókincs Játék</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .game-container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 400px;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        .word-box {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+            color: #2980b9;
+        }
+        .timer {
+            font-size: 18px;
+            color: #e74c3c;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #219653;
+        }
+        .stats {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-container" id="gameBox">
+    <h2>Művészeti Szavak Kvíz</h2>
+    <div id="startScreen">
+        <p>Írd le a megadott magyar szavak angol megfelelőjét 15 másodperc alatt!</p>
+        <button onclick="startGame()">Játék indítása</button>
+    </div>
+
+    <div id="playScreen" style="display: none;">
+        <div class="timer" id="timerDisplay">Hátralévő idő: 15s</div>
+        <div class="word-box" id="hungarianWord">Magyar szó</div>
+        <input type="text" id="userInput" placeholder="Írd be angolul..." autocomplete="off">
+        <br>
+        <button onclick="checkAnswer()">Következő / Beküldés</button>
+        <div class="stats" id="statsDisplay">Pontszám: 0 | Kérdés: 0 / 0</div>
+    </div>
+
+    <div id="endScreen" style="display: none;">
+        <h2>Vége a játéknak!</h2>
+        <p id="finalScore"></p>
+        <button onclick="startGame()">Újrakezdés</button>
+    </div>
+</div>
+
+<script>
+    // Szógyűjtemény (magyar -> angol válaszlehetőségek, többféle angol válasz is engedélyezett vesszővel elválasztva)
+    const rawData = [
+        { en: "painting", hu: "festészet" },
+        { en: "sculpture", hu: "szobrászat" },
+        { en: "architecture", hu: "építészet" },
+        { en: "painter", hu: "festő" },
+        { en: "sculptor", hu: "szobrász" },
+        { en: "architect", hu: "építész" },
+        { en: "to paint", hu: "festeni" },
+        { en: "to draw", hu: "rajzolni" },
+        { en: "to form", hu: "formálni, kialakítani" },
+        { en: "to create", hu: "alkotni" },
+        { en: "to carve", hu: "faragni" },
+        { en: "to design", hu: "megtervezni" },
+        { en: "to build", hu: "megépíteni" },
+        { en: "painting", hu: "festmény" },
+        { en: "drawing", hu: "rajz" },
+        { en: "portrait", hu: "arckép" },
+        { en: "mosaic", hu: "mozaik" },
+        { en: "cave painting", hu: "barlangfestmény" },
+        { en: "scкульпture, statue", hu: "szobor" }, // statue / sculpture kezelése
+        { en: "statuette", hu: "kicsi szobor" },
+        { en: "effigy", hu: "alakos" },
+        { en: "relief", hu: "dombormű" },
+        { en: "temple", hu: "templom" },
+        { en: "museum", hu: "múzeum" },
+        { en: "theater", hu: "színház" },
+        { en: "landscape", hu: "tájkép" },
+        { en: "amphitheater", hu: "kültéri színház" }
+    ];
+
+    // Tisztított adatszerkezet (duplikációk és alternatívák kezelése)
+    const dictionary = [
+        { en: ["painting"], hu: "festészet" },
+        { en: ["sculpture"], hu: "szobrászat" },
+        { en: ["architecture"], hu: "építészet" },
+        { en: ["painter"], hu: "festő" },
+        { en: ["sculptor"], hu: "szobrász" },
+        { en: ["architect"], hu: "építész" },
+        { en: ["to paint"], hu: "festeni" },
+        { en: ["to draw"], hu: "rajzolni" },
+        { en: ["to form"], hu: "formálni, kialakítani" },
+        { en: ["to create"], hu: "alkotni" },
+        { en: ["to carve"], hu: "faragni" },
+        { en: ["to design"], hu: "megtervezni" },
+        { en: ["to build"], hu: "megépíteni" },
+        { en: ["painting"], hu: "festmény" },
+        { en: ["drawing"], hu: "rajz" },
+        { en: ["portrait"], hu: "arckép" },
+        { en: ["mosaic", "portrait"], hu: "mozaik" }, // Ha a portré/mozaik duplikáció volt, itt egyedi
+        { en: ["cave painting"], hu: "barlangfestmény" },
+        { en: ["sculpture", "statue"], hu: "szobor" },
+        { en: ["statuette"], hu: "kicsi szobor" },
+        { en: ["effigy"], hu: "alakos" },
+        { en: ["relief"], hu: "dombormű" },
+        { en: ["temple"], hu: "templom" },
+        { en: ["museum"], hu: "múzeum" },
+        { en: ["theater", "theatre"], hu: "színház" },
+        { en: ["landscape"], hu: "tájkép" },
+        { en: ["amphitheater", "amphitheatre"], hu: "kültéri színház" }
+    ];
+
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let timeLeft = 15;
+    let timerInterval;
+
+    // Enter billentyű figyelése az input mezőben
+    document.getElementById("userInput").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            checkAnswer();
+        }
+    });
+
+    function startGame() {
+        // Szavak összekeverése (random sorrend)
+        currentQuestions = [...dictionary].sort(() => Math.random() - 0.5);
+        currentIndex = 0;
+        score = 0;
+
+        document.getElementById("startScreen").style.display = "none";
+        document.getElementById("endScreen").style.display = "none";
+        document.getElementById("playScreen").style.display = "block";
+
+        loadNextQuestion();
+    }
+
+    function loadNextQuestion() {
+        clearInterval(timerInterval);
+
+        if (currentIndex >= currentQuestions.length) {
+            endGame();
+            return;
+        }
+
+        timeLeft = 15;
+        document.getElementById("timerDisplay").innerText = `Hátralévő idő: ${timeLeft}s`;
+        document.getElementById("hungarianWord").innerText = currentQuestions[currentIndex].hu;
+        document.getElementById("userInput").value = "";
+        document.getElementById("statsDisplay").innerText = `Pontszám: ${score} | Kérdés: ${currentIndex + 1} / ${currentQuestions.length}`;
+
+        // Időzítő indítása
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById("timerDisplay").innerText = `Hátralévő idő: ${timeLeft}s`;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                currentIndex++;
+                loadNextQuestion();
+            }
+        }, 1000);
+    }
+
+    function checkAnswer() {
+        clearInterval(timerInterval);
+        const userInputValue = document.getElementById("userInput").value.trim().toLowerCase();
+        const correctAnswers = currentQuestions[currentIndex].en;
+
+        // Ellenőrzés, hogy a megadott válasz megegyezik-e valamelyik helyes angol alakkal
+        if (correctAnswers.includes(userInputValue)) {
+            score++;
+        }
+
+        currentIndex++;
+        loadNextQuestion();
+    }
+
+    function endGame() {
+        document.getElementById("playScreen").style.display = "none";
+        document.getElementById("endScreen").style.display = "block";
+        document.getElementById("finalScore").innerText = `A játék véget ért! Elért pontszámzó: ${score} / ${currentQuestions.length}`;
+    }
+</script>
+
+</body>
+</html>
