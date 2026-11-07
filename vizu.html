@@ -112,9 +112,8 @@
         { en: "portrait", hu: "arckép" },
         { en: "mosaic", hu: "mozaik" },
         { en: "cave painting", hu: "barlangfestmény" },
-        { en: "scкульпture, statue", hu: "szobor" }, // statue / sculpture kezelése
+        { en: "sculpture, statue", hu: "szobor" }, // statue / sculpture kezelése
         { en: "statuette", hu: "kicsi szobor" },
-        { en: "effigy", hu: "alakos" },
         { en: "relief", hu: "dombormű" },
         { en: "temple", hu: "templom" },
         { en: "museum", hu: "múzeum" },
@@ -141,11 +140,10 @@
         { en: ["painting"], hu: "festmény" },
         { en: ["drawing"], hu: "rajz" },
         { en: ["portrait"], hu: "arckép" },
-        { en: ["mosaic", "portrait"], hu: "mozaik" }, // Ha a portré/mozaik duplikáció volt, itt egyedi
+        { en: ["mosaic"], hu: "mozaik" }, // Ha a portré/mozaik duplikáció volt, itt egyedi
         { en: ["cave painting"], hu: "barlangfestmény" },
         { en: ["sculpture", "statue"], hu: "szobor" },
         { en: ["statuette"], hu: "kicsi szobor" },
-        { en: ["effigy"], hu: "alakos" },
         { en: ["relief"], hu: "dombormű" },
         { en: ["temple"], hu: "templom" },
         { en: ["museum"], hu: "múzeum" },
@@ -157,7 +155,7 @@
     let currentQuestions = [];
     let currentIndex = 0;
     let score = 0;
-    let timeLeft = 15;
+    let timeLeft = 25;
     let timerInterval;
 
     // Enter billentyű figyelése az input mezőben
