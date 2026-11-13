@@ -1,0 +1,304 @@
+
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Michael Jackson Kvíz</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #090909, #292929);
+    color: white;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    width: 90%;
+    max-width: 600px;
+    background: #171717;
+    padding: 30px;
+    border-radius: 18px;
+    box-shadow: 0 0 30px #d4a01755;
+    text-align: center;
+}
+
+h1 {
+    color: #f5c542;
+    font-size: 30px;
+}
+
+.subtitle {
+    color: #aaa;
+}
+
+#question {
+    font-size: 21px;
+    margin: 30px 0 20px;
+}
+
+.answers {
+    display: grid;
+    gap: 12px;
+}
+
+.answers button {
+    padding: 15px;
+    border: 2px solid #444;
+    border-radius: 10px;
+    background: #252525;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.2s;
+}
+
+.answers button:hover:not(:disabled) {
+    border-color: #f5c542;
+    background: #383126;
+}
+
+.answers button:disabled {
+    cursor: default;
+}
+
+.correct {
+    background: #176b35 !important;
+    border-color: #31e36c !important;
+}
+
+.wrong {
+    background: #851f1f !important;
+    border-color: #ff4444 !important;
+}
+
+#feedback {
+    margin: 20px;
+    font-weight: bold;
+    min-height: 24px;
+}
+
+#next, #restart {
+    padding: 13px 25px;
+    border: none;
+    border-radius: 8px;
+    background: #d4a017;
+    color: black;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 15px;
+}
+
+#next:hover, #restart:hover {
+    background: #ffcf45;
+}
+
+#progress {
+    color: #aaa;
+    margin-top: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>👑 Michael Jackson Kvíz</h1>
+    <p class="subtitle">Mennyire ismered a pop királyát?</p>
+
+    <div id="quiz">
+        <div id="progress"></div>
+        <h2 id="question"></h2>
+        <div class="answers" id="answers"></div>
+        <div id="feedback"></div>
+        <button id="next" onclick="nextQuestion()" hidden>
+            Következő kérdés →
+        </button>
+    </div>
+
+    <div id="result" hidden>
+        <h2>🎉 Kvíz vége!</h2>
+        <h1 id="score"></h1>
+        <p id="message"></p>
+        <button id="restart" onclick="restartQuiz()">
+            Új játék
+        </button>
+    </div>
+
+</div>
+
+<script>
+
+const questions = [
+{
+    question: "Mikor született Michael Jackson?",
+    answers: ["1955", "1958", "1960", "1962"],
+    correct: 1
+},
+{
+    question: "Mi volt Michael Jackson beceneve?",
+    answers: ["Rock királya", "Pop királya", "Diszkó királya", "Soul királya"],
+    correct: 1
+},
+{
+    question: "Melyik albumon található a Thriller című dal?",
+    answers: ["Bad", "Dangerous", "Thriller", "Invincible"],
+    correct: 2
+},
+{
+    question: "Hány éves volt Michael Jackson, amikor a Jackson 5 tagjaként ismertté vált?",
+    answers: ["5", "11", "16", "20"],
+    correct: 1
+},
+{
+    question: "Melyik évben jelent meg a Thriller album?",
+    answers: ["1979", "1982", "1987", "1991"],
+    correct: 1
+},
+{
+    question: "Mi Michael Jackson híres táncmozdulatának neve?",
+    answers: ["Moonwalk", "Robot Dance", "Shuffle", "Slide"],
+    correct: 0
+},
+{
+    question: "Melyik dal kezdődik a híres 'Annie, are you OK?' sorral?",
+    answers: ["Billie Jean", "Smooth Criminal", "Beat It", "Bad"],
+    correct: 1
+},
+{
+    question: "Hol született Michael Jackson?",
+    answers: ["New York", "Los Angeles", "Gary, Indiana", "Chicago"],
+    correct: 2
+},
+{
+    question: "Mi volt Michael Jackson első szólóalbumának címe a Motownnál?",
+    answers: ["Off the Wall", "Got to Be There", "Bad", "Dangerous"],
+    correct: 1
+},
+{
+    question: "Melyik évben hunyt el Michael Jackson?",
+    answers: ["2007", "2008", "2009", "2010"],
+    correct: 2
+}
+];
+
+let current = 0;
+let points = 0;
+let answered = false;
+
+function loadQuestion() {
+    answered = false;
+
+    const q = questions[current];
+
+    document.getElementById("progress").textContent =
+        `Kérdés ${current + 1} / ${questions.length}`;
+
+    document.getElementById("question").textContent = q.question;
+
+    const answers = document.getElementById("answers");
+    answers.innerHTML = "";
+
+    document.getElementById("feedback").textContent = "";
+    document.getElementById("next").hidden = true;
+
+    q.answers.forEach((answer, index) => {
+        const button = document.createElement("button");
+
+        button.textContent = answer;
+        button.onclick = () => checkAnswer(index, button);
+
+        answers.appendChild(button);
+    });
+}
+
+function checkAnswer(index, button) {
+    if (answered) return;
+
+    answered = true;
+
+    const q = questions[current];
+    const buttons = document.querySelectorAll(".answers button");
+
+    buttons.forEach((btn, i) => {
+        btn.disabled = true;
+
+        if (i === q.correct) {
+            btn.classList.add("correct");
+        }
+    });
+
+    if (index === q.correct) {
+        points++;
+        document.getElementById("feedback").textContent =
+            "✅ Helyes válasz! Szép munka!";
+        document.getElementById("feedback").style.color = "#31e36c";
+    } else {
+        button.classList.add("wrong");
+        document.getElementById("feedback").textContent =
+            "❌ Sajnos nem jó válasz!";
+        document.getElementById("feedback").style.color = "#ff5555";
+    }
+
+    document.getElementById("next").hidden = false;
+}
+
+function nextQuestion() {
+    current++;
+
+    if (current < questions.length) {
+        loadQuestion();
+    } else {
+        showResult();
+    }
+}
+
+function showResult() {
+    document.getElementById("quiz").hidden = true;
+    document.getElementById("result").hidden = false;
+
+    document.getElementById("score").textContent =
+        `${points} / ${questions.length} pont`;
+
+    let message;
+
+    if (points === 10) {
+        message = "👑 Te vagy Michael Jackson legnagyobb rajongója!";
+    } else if (points >= 7) {
+        message = "🌟 Nagyon jól ismered Michael Jacksont!";
+    } else if (points >= 4) {
+        message = "🎵 Jó úton jársz, még tanulhatsz róla!";
+    } else {
+        message = "🎤 Ideje meghallgatni néhány Michael Jackson dalt!";
+    }
+
+    document.getElementById("message").textContent = message;
+}
+
+function restartQuiz() {
+    current = 0;
+    points = 0;
+
+    document.getElementById("quiz").hidden = false;
+    document.getElementById("result").hidden = true;
+
+    loadQuestion();
+}
+
+loadQuestion();
+
+</script>
+
+</body>
+</html>
