@@ -300,5 +300,365 @@ loadQuestion();
 
 </script>
 
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Michael Jackson Fan Quiz</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    color: white;
+    background:
+      linear-gradient(rgba(0,0,0,.82),rgba(0,0,0,.9)),
+      url("michael-background.jpg") center/cover fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 650px;
+    padding: 30px;
+    text-align: center;
+    border: 2px solid #d4af37;
+    border-radius: 20px;
+    background: rgba(12,12,12,.94);
+    box-shadow: 0 0 35px #d4af3766;
+}
+
+h1 {
+    color: #e7bd48;
+    font-size: 32px;
+    text-shadow: 0 0 15px #d4af37;
+}
+
+.crown { font-size: 55px; }
+
+#progress {
+    color: #d4af37;
+    margin: 20px;
+}
+
+#question {
+    font-size: 22px;
+    margin: 25px 0;
+}
+
+.answers {
+    display: grid;
+    gap: 12px;
+}
+
+.answers button {
+    padding: 15px;
+    background: #242424;
+    color: white;
+    border: 1px solid #b99736;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.answers button:hover:not(:disabled) {
+    background: #70551b;
+    transform: scale(1.02);
+}
+
+.answers button:disabled {
+    cursor: default;
+}
+
+.correct {
+    background: #176b35 !important;
+}
+
+.wrong {
+    background: #921f1f !important;
+}
+
+#feedback {
+    min-height: 25px;
+    margin: 20px;
+    font-weight: bold;
+}
+
+.main-button {
+    background: linear-gradient(90deg,#a77a12,#f5d36a);
+    border: none;
+    color: black;
+    padding: 14px 28px;
+    border-radius: 9px;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+#result h2 {
+    color: #e7bd48;
+    font-size: 27px;
+}
+
+#result h1 {
+    font-size: 40px;
+}
+
+#result p {
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+#result {
+    padding: 15px 0;
+}
+
+.hidden { display: none; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="crown">👑</div>
+    <h1>MICHAEL JACKSON</h1>
+    <h2>FAN QUIZ</h2>
+    <p>Bizonyítsd be, mekkora Michael Jackson-rajongó vagy!</p>
+
+    <div id="quiz">
+        <div id="progress"></div>
+        <h2 id="question"></h2>
+        <div class="answers" id="answers"></div>
+        <div id="feedback"></div>
+        <button class="main-button hidden" id="next">
+            Következő kérdés →
+        </button>
+    </div>
+
+    <div id="result" class="hidden">
+        <div class="crown">👑</div>
+        <h2>KVÍZ BEFEJEZVE!</h2>
+        <h1 id="score"></h1>
+        <p id="level"></p>
+        <p id="description"></p>
+        <button class="main-button" onclick="restart()">
+            ÚJRAJÁTSZÁS 🔄
+        </button>
+    </div>
+
+</div>
+
+<script>
+
+const questions = [
+{
+q:"Mikor született Michael Jackson?",
+a:["1955","1958","1960","1962"],c:1
+},
+{
+q:"Hol született Michael Jackson?",
+a:["New York","Gary, Indiana","London","Los Angeles"],c:1
+},
+{
+q:"Mi volt Michael Jackson beceneve?",
+a:["Rock királya","Pop királya","Diszkó királya","Soul királya"],c:1
+},
+{
+q:"Melyik évben jelent meg a Thriller album?",
+a:["1979","1982","1987","1991"],c:1
+},
+{
+q:"Mi a híres táncmozdulatának neve?",
+a:["Robot","Moonwalk","Shuffle","Slide"],c:1
+},
+{
+q:"Melyik dalhoz tartozik az Annie, are you OK? sor?",
+a:["Bad","Thriller","Smooth Criminal","Beat It"],c:2
+},
+{
+q:"Hány testvére volt Michael Jacksonnak?",
+a:["4","5","8","9"],c:2
+},
+{
+q:"Mi volt Michael Jackson együttesének neve?",
+a:["The Beatles","Jackson 5","Queen","The Jackson Band"],c:1
+},
+{
+q:"Melyik dalban hallható a híres Billie Jean cím?",
+a:["Billie Jean","Black or White","Bad","Heal the World"],c:0
+},
+{
+q:"Mikor hunyt el Michael Jackson?",
+a:["2007","2008","2009","2011"],c:2
+},
+{
+q:"Mi volt Michael Jackson első Motown szólóalbumának címe?",
+a:["Bad","Got to Be There","Dangerous","Thriller"],c:1
+},
+{
+q:"Melyik dalban szerepel a 'Beat It' cím?",
+a:["Off the Wall","Beat It","Earth Song","You Are Not Alone"],c:1
+},
+{
+q:"Melyik évben jelent meg a Bad album?",
+a:["1982","1985","1987","1995"],c:2
+},
+{
+q:"Melyik dal szól a Föld védelméről?",
+a:["Earth Song","Bad","Dirty Diana","Remember the Time"],c:0
+},
+{
+q:"Mi volt Michael Jackson híres kesztyűjének színe?",
+a:["Piros","Arany","Fehér","Ezüst"],c:2
+},
+{
+q:"Melyik videóklipben változnak az emberek zombikká?",
+a:["Bad","Thriller","Ghosts","Smooth Criminal"],c:1
+},
+{
+q:"Melyik albumon található a Black or White?",
+a:["Dangerous","Bad","Thriller","Invincible"],c:0
+},
+{
+q:"Milyen állat volt Michael Jackson híres házi kedvence, Bubbles?",
+a:["Kutya","Csimpánz","Papagáj","Macska"],c:1
+},
+{
+q:"Mi volt Michael Jackson utolsó stúdióalbuma?",
+a:["Dangerous","Invincible","Bad","HIStory"],c:1
+},
+{
+q:"Melyik évben mutatták be a This Is It koncertsorozatot?",
+a:["2005","2007","2009","2011"],c:2
+}
+];
+
+let current = 0;
+let points = 0;
+let answered = false;
+
+function loadQuestion() {
+    answered = false;
+
+    let q = questions[current];
+
+    document.getElementById("progress").textContent =
+        `KÉRDÉS ${current+1} / 20`;
+
+    document.getElementById("question").textContent = q.q;
+
+    let answers = document.getElementById("answers");
+    answers.innerHTML = "";
+
+    document.getElementById("feedback").textContent = "";
+    document.getElementById("next").classList.add("hidden");
+
+    q.a.forEach((answer,index) => {
+        let btn = document.createElement("button");
+        btn.textContent = answer;
+        btn.onclick = () => checkAnswer(index,btn);
+        answers.appendChild(btn);
+    });
+}
+
+function checkAnswer(index,button) {
+    if(answered) return;
+    answered = true;
+
+    let q = questions[current];
+    let buttons = document.querySelectorAll(".answers button");
+
+    buttons.forEach((btn,i) => {
+        btn.disabled = true;
+        if(i === q.c) btn.classList.add("correct");
+    });
+
+    let feedback = document.getElementById("feedback");
+
+    if(index === q.c) {
+        points++;
+        feedback.textContent = "✔ HELYES! Nagyon jól tudod!";
+        feedback.style.color = "#45e879";
+    } else {
+        button.classList.add("wrong");
+        feedback.textContent = "✖ Sajnos rossz válasz!";
+        feedback.style.color = "#ff5555";
+    }
+
+    document.getElementById("next").classList.remove("hidden");
+}
+
+document.getElementById("next").onclick = () => {
+    current++;
+
+    if(current < questions.length) {
+        loadQuestion();
+    } else {
+        showResult();
+    }
+};
+
+function showResult() {
+    document.getElementById("quiz").classList.add("hidden");
+    document.getElementById("result").classList.remove("hidden");
+
+    let percent = Math.round(points / 20 * 100);
+
+    document.getElementById("score").textContent =
+        points + " / 20 (" + percent + "%)";
+
+    let level,description;
+
+    if(percent === 100) {
+        level = "👑 ULTIMATE MICHAEL JACKSON FAN";
+        description = "Hihetetlen! Te mindent tudsz a Pop Királyáról! Igazi legenda vagy!";
+    }
+    else if(percent >= 80) {
+        level = "🌟 MEGA FAN";
+        description = "Hatalmas Michael Jackson-rajongó vagy! Nagyon jól ismered az életét és a zenéit!";
+    }
+    else if(percent >= 60) {
+        level = "🎤 BIG FAN";
+        description = "Igazi rajongó vagy, de még van néhány titok, amit felfedezhetsz!";
+    }
+    else if(percent >= 35) {
+        level = "🎵 CASUAL FAN";
+        description = "Ismered Michael Jackson legismertebb dalait, de még tanulhatsz róla!";
+    }
+    else {
+        level = "⭐ BEGINNER FAN";
+        description = "Most kezded megismerni a Pop Királyát! Hallgass meg néhány legendás dalt!";
+    }
+
+    document.getElementById("level").textContent = level;
+    document.getElementById("description").textContent = description;
+}
+
+function restart() {
+    current = 0;
+    points = 0;
+
+    document.getElementById("result").classList.add("hidden");
+    document.getElementById("quiz").classList.remove("hidden");
+
+    loadQuestion();
+}
+
+loadQuestion();
+
+</script>
+</body>
+</html>
+
 </body>
 </html>
